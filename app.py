@@ -607,7 +607,7 @@ with tab_crud:
         new_doc_text = st.text_area("Document Content (Text):", placeholder="Enter the text content that will be embedded and searched...", height=110)
         new_doc_meta_raw = st.text_area("Metadata JSON (Optional):", value='{"category": "notes", "priority": "high"}', height=75)
 
-        if st.button("➕ Add Document to Collection", variant="primary"):
+        if st.button("➕ Add Document to Collection", type="primary"):
             if new_doc_id.strip() and new_doc_text.strip():
                 try:
                     meta_dict = json.loads(new_doc_meta_raw.strip()) if new_doc_meta_raw.strip() else {}
