@@ -357,9 +357,12 @@ dist_metric = coll_meta.get("hnsw:space", "l2")
 # Peek at vector dimension
 emb_dim = "384"
 if coll_count > 0:
-    peek_data = active_collection.peek(limit=1)
-    if peek_data and peek_data.get("embeddings") and len(peek_data["embeddings"]) > 0:
-        emb_dim = str(len(peek_data["embeddings"][0]))
+    try:
+        peek_data = active_collection.peek(limit=1)
+        if peek_data and peek_data.get("embeddings") is not None and len(peek_data["embeddings"]) > 0:
+            emb_dim = str(len(peek_data["embeddings"][0]))
+    except Exception:
+        emb_dim = "384"
 
 # Top Metrics Row
 st.markdown(f"""
@@ -510,12 +513,13 @@ with tab_map:
     if coll_count >= 2:
         # Fetch all embeddings
         all_data = active_collection.get(include=["documents", "metadatas", "embeddings"])
-        docs_list = all_data["documents"]
-        ids_list = all_data["ids"]
-        metas_list = all_data["metadatas"]
-        embs_list = np.array(all_data["embeddings"])
+        docs_list = all_data.get("documents") or []
+        ids_list = all_data.get("ids") or []
+        metas_list = all_data.get("metadatas") or []
+        embs_raw = all_data.get("embeddings")
 
-        if len(embs_list) >= 2:
+        if embs_raw is not None and len(embs_raw) >= 2:
+            embs_list = np.array(embs_raw)
             # Perform PCA projection to 2D
             pca = PCA(n_components=2)
             coords = pca.fit_transform(embs_list)
@@ -556,20 +560,23 @@ with tab_map:
                 try:
                     # Embed the query
                     temp_res = active_collection.query(query_texts=[query_text], n_results=1, include=["embeddings"])
-                    q_emb = np.array(temp_res["embeddings"][0])
-                    q_coords = pca.transform(q_emb)
+                    if temp_res and temp_res.get("embeddings") is not None and len(temp_res["embeddings"]) > 0:
+                        q_emb = np.array(temp_res["embeddings"][0])
+                        q_coords = pca.transform(q_emb)
 
-                    fig.add_trace(go.Scatter(
-                        x=q_coords[:, 0],
-                        y=q_coords[:, 1],
-                        mode="markers+text",
-                        name="Query: " + (query_text[:20] + "..."),
-                        text=["⭐ QUERY"],
-                        textposition="top center",
-                        marker=dict(size=18, symbol="star", color="#ef4444", line=dict(width=2, color="black")),
-                        hoverinfo="text",
-                        hovertext=f"Search Query: '{query_text}'"
-                    ))
+                        fig.add_trace(go.Scatter(
+                            x=q_coords[:, 0],
+                            y=q_coords[:, 1],
+                            mode="markers+text",
+                            name="Query: " + (query_text[:20] + "..."),
+                            text=["⭐ QUERY"],
+                            textposition="top center",
+                            marker=dict(size=18, symbol="star", color="#ef4444", line=dict(width=2, color="black")),
+                            hoverinfo="text",
+                            hovertext=f"Search Query: '{query_text}'"
+                        ))
+                except Exception:
+                    pass
                 except Exception:
                     pass
 
